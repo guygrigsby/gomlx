@@ -167,6 +167,24 @@ func NewSeqLenAttentionConfig(querySeqLen, keyValueSeqLen *Node) *compute.Scaled
 	return cfg
 }
 
+// NewFusedAttentionConfig builds a ScaledDotProductAttentionConfig from optional seqlen and
+// additive bias nodes. Any of the three arguments may be nil. When both seqlens and a bias
+// are set, go-xla returns ErrNotImplemented (cuDNN ScaleBias does not accept seqlen operands)
+// and the caller falls back to the decomposed path, which handles the combination correctly.
+func NewFusedAttentionConfig(querySeqLen, keyValueSeqLen, attentionBias *Node) *compute.ScaledDotProductAttentionConfig {
+	cfg := &compute.ScaledDotProductAttentionConfig{}
+	if querySeqLen != nil {
+		cfg.QuerySeqLen = querySeqLen.outputOps[0]
+	}
+	if keyValueSeqLen != nil {
+		cfg.KeyValueSeqLen = keyValueSeqLen.outputOps[0]
+	}
+	if attentionBias != nil {
+		cfg.Bias = attentionBias.outputOps[0]
+	}
+	return cfg
+}
+
 // BackendFusedScaledDotProductAttention computes multi-head scaled dot-product attention via the
 // backend's fused op, returning the attention output. When the backend also returns softmax stats
 // and implements the fused backward, the gradient uses it (the cuDNN flash backward), threading the
